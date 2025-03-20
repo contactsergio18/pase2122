@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Listas de Centros</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+      background-color: #f4f4f9;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+    /* Primera fila: buscador y selector de centro */
+    .form-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .form-row > div {
+      flex: 1;
+      min-width: 200px;
+    }
+    /* Segunda fila: desplegable de Tipo de Puesto */
+    .form-row-second {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+    /* Contadores con la misma dimensión que los botones */
+    .counter {
+      background-color: #e0e0e0;
+      padding: 15px;
+      border-radius: 5px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      min-width: 150px;
+    }
+    select, input[type="text"] {
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      font-weight: bold;
+      padding: 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      white-space: nowrap;
+      min-width: 150px;
+    }
+    .add-button {
+      background-color: #007bff;
+      color: white;
+    }
+    .add-button:hover {
+      background-color: #0056b3;
+    }
+    .rest-button {
+      background-color: #fd7e14;
+      color: white;
+    }
+    .rest-button:hover {
+      background-color: #e06612;
+    }
+    .pdf-button {
+      background-color: #28a745;
+      color: white;
+    }
+    .pdf-button:hover {
+      background-color: #218838;
+    }
+    .danger-button {
+      background-color: #dc3545;
+      color: white;
+    }
+    .danger-button:hover {
+      background-color: #c82333;
+    }
+    .list-container {
+      margin-top: 20px;
+    }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      margin-bottom: 5px;
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: grab;
+      flex-wrap: wrap;
+    }
+    .list-item span {
+      margin: 4px 0;
+    }
+    .list-item .number {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    .list-item.dragging {
+      opacity: 0.5;
+      border: 2px dashed #007bff;
+    }
+    .list-item .remove-button {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #message {
+      font-size: 16px;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    #message.success {
+      color: green;
+      display: flex;
+      align-items: center;
+    }
+    #message.success::before {
+      content: "\2713";
+      margin-right: 5px;
+      color: green;
+    }
+    #message.error {
+      color: red;
+      display: flex;
+      align-items: center;
+    }
+    #message.error::before {
+      content: "\2717";
+      margin-right: 5px;
+      color: red;
+    }
+    #message.download {
+      color: green;
+      display: flex;
+      align-items: center;
+    }
+    #message.download::before {
+      content: "\2193";
+      margin-right: 5px;
+      color: green;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Datos extraídos del PDF "OEP 2122 Plazas paso a carrera"
+      const plazasData = [
+        { code: 31, center: "ALBACETE", puesto: "APOYO DE OFICINA CIS", level: 16, vacantes: 1 },
+        { code: 32, center: "ALBACETE", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 3 },
+        { code: 33, center: "ALBACETE", puesto: "OFICINA GENERICO", level: 16, vacantes: 4 },
+        { code: 34, center: "ALBACETE", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 5 },
+        { code: 35, center: "ALCAZAR DE SAN JUAN", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 4 },
+        { code: 36, center: "ALCAZAR DE SAN JUAN", puesto: "OFICINA GENERICO", level: 16, vacantes: 4 },
+        { code: 101, center: "ALICANTE CUMPLIMIENTO", puesto: "OFICINA GENERICO", level: 16, vacantes: 3 },
+        { code: 102, center: "ALICANTE CUMPLIMIENTO", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 2 },
+        { code: 103, center: "ALICANTE II", puesto: "OFICINA GENERICO", level: 16, vacantes: 27 },
+        { code: 104, center: "ALICANTE II", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 17 },
+        { code: 21, center: "ARRECIFE", puesto: "OFICINA GENERICO", level: 16, vacantes: 4 },
+        { code: 22, center: "ARRECIFE", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 9 },
+        { code: 48, center: "AVILA", puesto: "OFICINA GENERICO", level: 16, vacantes: 3 },
+        { code: 60, center: "BADAJOZ", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 1 },
+        { code: 61, center: "BADAJOZ", puesto: "OFICINA GENERICO", level: 16, vacantes: 13 },
+        { code: 62, center: "BADAJOZ", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 17 },
+        { code: 49, center: "BURGOS", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 2 },
+        { code: 50, center: "BURGOS", puesto: "OFICINA GENERICO", level: 16, vacantes: 1 },
+        { code: 63, center: "CACERES", puesto: "OFICINA GENERICO", level: 16, vacantes: 2 },
+        { code: 64, center: "CACERES", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 20 },
+        { code: 65, center: "CACERES", puesto: "SERVICIO INTERIOR DE VIGILANCIA CIS", level: 16, vacantes: 6 },
+        { code: 105, center: "CASTELLON", puesto: "OFICINA GENERICO", level: 16, vacantes: 2 },
+        { code: 106, center: "CASTELLON II", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 6 },
+        { code: 107, center: "CASTELLON II", puesto: "OFICINA GENERICO", level: 16, vacantes: 37 },
+        { code: 108, center: "CASTELLON II", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 90 },
+        { code: 37, center: "CUENCA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 4 },
+        { code: 38, center: "CUENCA", puesto: "OFICINA GENERICO", level: 16, vacantes: 7 },
+        { code: 39, center: "CUENCA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 5 },
+        { code: 1, center: "DAROCA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 4 },
+        { code: 2, center: "DAROCA", puesto: "OFICINA GENERICO", level: 16, vacantes: 16 },
+        { code: 3, center: "DAROCA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 83 },
+        { code: 67, center: "DIR. GRAL. EJECUCION PENAL Y R. S. JEFE/JEFA DE NEGOCIADO DE ADMON.PENIT.", puesto: "JEFE/JEFA DE NEGOCIADO DE ADMON.PENIT.", level: 16, vacantes: 6 },
+        { code: 68, center: "GERENCIA EETPyFE JEFE/JEFA DE NEGOCIADO DE ADMON.PENIT.", puesto: "JEFE/JEFA DE NEGOCIADO DE ADMON.PENIT.", level: 16, vacantes: 2 },
+        { code: 40, center: "HERRERA DE LA MANCHA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 6 },
+        { code: 41, center: "HERRERA DE LA MANCHA", puesto: "OFICINA GENERICO", level: 16, vacantes: 5 },
+        { code: 10, center: "IBIZA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 6 },
+        { code: 11, center: "IBIZA", puesto: "OFICINA GENERICO", level: 16, vacantes: 6 },
+        { code: 12, center: "IBIZA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 15 },
+        { code: 13, center: "IBIZA", puesto: "SERVICIO INTERIOR DE VIGILANCIA DOS", level: 16, vacantes: 1 },
+        { code: 51, center: "LA MORALEJA (DUEÑAS)", puesto: "OFICINA GENERICO", level: 16, vacantes: 5 },
+        { code: 52, center: "LA MORALEJA (DUEÑAS)", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 20 },
+        { code: 23, center: "LAS PALMAS", puesto: "APOYO SERVICIO DE GEST. DE PENAS Y M. A.", level: 16, vacantes: 1 },
+        { code: 24, center: "LAS PALMAS", puesto: "OFICINA GENERICO", level: 16, vacantes: 9 },
+        { code: 25, center: "LAS PALMAS II", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 3 },
+        { code: 26, center: "LAS PALMAS II", puesto: "OFICINA GENERICO", level: 16, vacantes: 23 },
+        { code: 27, center: "LAS PALMAS II", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 10 },
+        { code: 66, center: "LOGROÑO", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 44 },
+        { code: 69, center: "MADRID ALCALA HENARES CIS", puesto: "APOYO DE OFICINA CIS", level: 16, vacantes: 2 },
+        { code: 70, center: "MADRID ALCALA HENARES CIS", puesto: "SERVICIO INTERIOR DE VIGILANCIA CIS", level: 16, vacantes: 1 },
+        { code: 71, center: "MADRID I (ALCALA MUJERES)", puesto: "OFICINA GENERICO", level: 16, vacantes: 10 },
+        { code: 72, center: "MADRID II (ALCALA MECO)", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 7 },
+        { code: 73, center: "MADRID II (ALCALA MECO)", puesto: "OFICINA GENERICO", level: 16, vacantes: 9 },
+        { code: 74, center: "MADRID II (ALCALA MECO)", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 74 },
+        { code: 75, center: "MADRID II (ALCALA MECO)", puesto: "SERVICIO INTERIOR DE VIGILANCIA DOS", level: 16, vacantes: 2 },
+        { code: 76, center: "MADRID III (VALDEMORO)", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 4 },
+        { code: 77, center: "MADRID III (VALDEMORO)", puesto: "OFICINA GENERICO", level: 16, vacantes: 19 },
+        { code: 78, center: "MADRID III (VALDEMORO)", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 63 },
+        { code: 79, center: "MADRID IV (NAVALCARNERO)", puesto: "OFICINA GENERICO", level: 16, vacantes: 17 },
+        { code: 80, center: "MADRID IV (NAVALCARNERO)", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 34 },
+        { code: 81, center: "MADRID NAVALCARNERO", puesto: "APOYO DE OFICINA CIS", level: 16, vacantes: 2 },
+        { code: 82, center: "MADRID NAVALCARNERO", puesto: "SERVICIO INTERIOR DE VIGILANCIA CIS", level: 16, vacantes: 4 },
+        { code: 83, center: "MADRID V (SOTO DEL REAL)", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 9 },
+        { code: 84, center: "MADRID V (SOTO DEL REAL)", puesto: "OFICINA GENERICO", level: 16, vacantes: 27 },
+        { code: 85, center: "MADRID V (SOTO DEL REAL)", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 94 },
+        { code: 86, center: "MADRID V (SOTO DEL REAL)", puesto: "SERVICIO INTERIOR DE VIGILANCIA DOS", level: 16, vacantes: 10 },
+        { code: 87, center: "MADRID VI (ARANJUEZ)", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 7 },
+        { code: 88, center: "MADRID VI (ARANJUEZ)", puesto: "OFICINA GENERICO", level: 16, vacantes: 30 },
+        { code: 89, center: "MADRID VI (ARANJUEZ)", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 105 },
+        { code: 90, center: "MADRID VII (Estremera)", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 21 },
+        { code: 91, center: "MADRID VII (Estremera)", puesto: "OFICINA GENERICO", level: 16, vacantes: 42 },
+        { code: 92, center: "MADRID VII (Estremera)", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 160 },
+        { code: 93, center: "MADRID VII (Estremera)", puesto: "SERVICIO INTERIOR DE VIGILANCIA DOS", level: 16, vacantes: 42 },
+        { code: 14, center: "MALLORCA", puesto: "OFICINA GENERICO", level: 16, vacantes: 13 },
+        { code: 15, center: "MALLORCA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 50 },
+        { code: 16, center: "MALLORCA", puesto: "CIS APOYO DE OFICINA CIS", level: 16, vacantes: 2 },
+        { code: 17, center: "MALLORCA", puesto: "CIS GENERICO AREA MIXTA DE CIS", level: 16, vacantes: 1 },
+        { code: 18, center: "MENORCA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 9 },
+        { code: 19, center: "MENORCA", puesto: "OFICINA GENERICO", level: 16, vacantes: 8 },
+        { code: 20, center: "MENORCA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 9 },
+        { code: 95, center: "MURCIA II", puesto: "OFICINA GENERICO", level: 16, vacantes: 15 },
+        { code: 45, center: "OCAÑA II", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 2 },
+        { code: 46, center: "OCAÑA II", puesto: "OFICINA GENERICO", level: 16, vacantes: 9 },
+        { code: 47, center: "OCAÑA II", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 24 },
+        { code: 42, center: "OCAÑAI", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 4 },
+        { code: 43, center: "OCAÑAI", puesto: "OFICINA GENERICO", level: 16, vacantes: 1 },
+        { code: 44, center: "OCAÑAI", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 13 },
+        { code: 96, center: "PAMPLONA", puesto: "APOYO SERVICIO DE GEST. DE PENAS Y M. A.", level: 16, vacantes: 1 },
+        { code: 97, center: "PAMPLONA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 5 },
+        { code: 98, center: "PAMPLONA", puesto: "OFICINA GENERICO", level: 16, vacantes: 6 },
+        { code: 99, center: "PAMPLONA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 22 },
+        { code: 100, center: "PAMPLONA", puesto: "SERVICIO INTERIOR DE VIGILANCIA DOS", level: 16, vacantes: 3 },
+        { code: 28, center: "S.C. DE LA PALMA", puesto: "OFICINA GENERICO", level: 16, vacantes: 2 },
+        { code: 94, center: "S.G. DE RECURSOS HUMANOS", puesto: "JEFE/JEFA DE NEGOCIADO DE ADMON.PENIT.", level: 16, vacantes: 2 },
+        { code: 53, center: "SEGOVIA", puesto: "OFICINA GENERICO", level: 16, vacantes: 5 },
+        { code: 54, center: "SEGOVIA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 23 },
+        { code: 55, center: "SORIA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 4 },
+        { code: 56, center: "SORIA", puesto: "OFICINA GENERICO", level: 16, vacantes: 3 },
+        { code: 57, center: "SORIA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 44 },
+        { code: 58, center: "SORIA", puesto: "SERVICIO INTERIOR DE VIGILANCIA DOS", level: 16, vacantes: 13 },
+        { code: 29, center: "TENERIFE II (EL ROSARIO)", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 2 },
+        { code: 30, center: "TENERIFE II (EL ROSARIO)", puesto: "OFICINA GENERICO", level: 16, vacantes: 23 },
+        { code: 4, center: "TERUEL", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 3 },
+        { code: 5, center: "TERUEL", puesto: "OFICINA GENERICO", level: 16, vacantes: 6 },
+        { code: 6, center: "TERUEL", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 16 },
+        { code: 109, center: "VALENCIA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 36 },
+        { code: 59, center: "VALLADOLID", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 3 },
+        { code: 7, center: "ZUERA", puesto: "GENERICO AREA MIXTA", level: 16, vacantes: 1 },
+        { code: 8, center: "ZUERA", puesto: "OFICINA GENERICO", level: 16, vacantes: 10 },
+        { code: 9, center: "ZUERA", puesto: "SERVICIO INTERIOR DE VIGILANCIA", level: 16, vacantes: 38 }
+      ];
+      
+      // Construir un mapa de centros: { center: [plaza, ...] }
+      const centersMap = {};
+      plazasData.forEach(plaza => {
+        if (!centersMap[plaza.center]) centersMap[plaza.center] = [];
+        centersMap[plaza.center].push(plaza);
+      });
+      
+      // Calcular total de combinaciones únicas (agrupando por puesto exacto en cada centro)
+      let totalCombinaciones = 0;
+      Object.keys(centersMap).forEach(center => {
+        const group = {};
+        centersMap[center].forEach(plaza => {
+          group[plaza.puesto] = true;
+        });
+        totalCombinaciones += Object.keys(group).length;
+      });
+      
+      // Referencias a elementos
+      const centerSelect = document.getElementById("center");
+      const typeSelect = document.getElementById("type");
+      const listContainer = document.getElementById("listContainer");
+      const message = document.getElementById("message");
+      const searchCenter = document.getElementById("searchCenter");
+      const counterRemainingDiv = document.getElementById("counterRemaining");
+      const counterTotalDiv = document.getElementById("counterTotal");
+      
+      // Función para actualizar los contadores
+      function updateCounters() {
+        const itemsCount = listContainer.children.length;
+        counterRemainingDiv.textContent = "Puesto por añadir: " + (totalCombinaciones - itemsCount);
+        
+        let totalPlazas = 0;
+        [...listContainer.children].forEach(item => {
+          totalPlazas += parseInt(item.dataset.vacantes);
+        });
+        counterTotalDiv.textContent = "Suma de plazas añadidas: " + totalPlazas;
+      }
+      
+      // Función para actualizar el desplegable de centros según el filtro
+      function updateCenterOptions() {
+        const query = searchCenter.value.toLowerCase();
+        centerSelect.innerHTML = "";
+        const filtered = Object.keys(centersMap).filter(center => {
+          const centerMatch = center.toLowerCase().includes(query);
+          let codeMatch = false;
+          // Si el query es solo dígitos, buscamos coincidencia exacta del código
+          if (/^\d+$/.test(query)) {
+            codeMatch = centersMap[center].some(plaza => String(plaza.code) === query);
+          } else { // de lo contrario, búsqueda parcial
+            codeMatch = centersMap[center].some(plaza => String(plaza.code).includes(query));
+          }
+          return centerMatch || codeMatch;
+        }).sort();
+        filtered.forEach(center => {
+          const option = document.createElement("option");
+          option.value = center;
+          option.textContent = center;
+          centerSelect.appendChild(option);
+        });
+        if (filtered.length > 0) {
+          updateTypeOptions(filtered[0]);
+        } else {
+          typeSelect.innerHTML = "";
+        }
+      }
+      
+      // Función para actualizar el desplegable de puestos para un centro dado, agrupando por el puesto EXACTO del PDF.
+      function updateTypeOptions(center) {
+        typeSelect.innerHTML = "";
+        const group = {};
+        centersMap[center].forEach(plaza => {
+          const key = plaza.puesto;
+          if (!group[key]) {
+            group[key] = { vacantes: 0, codes: [] };
+          }
+          group[key].vacantes += plaza.vacantes;
+          group[key].codes.push(plaza.code);
+        });
+        Object.keys(group).forEach(puesto => {
+          const option = document.createElement("option");
+          option.value = puesto;
+          option.textContent = `${center} - ${puesto} (${group[puesto].vacantes} plaza${group[puesto].vacantes > 1 ? "s" : ""}) - Código: ${group[puesto].codes.join(", ")}`;
+          option.dataset.vacantes = group[puesto].vacantes;
+          option.dataset.codes = group[puesto].codes.join(", ");
+          typeSelect.appendChild(option);
+        });
+      }
+      
+      // Inicializar desplegable y contadores
+      updateCenterOptions();
+      updateCounters();
+      
+      searchCenter.addEventListener("input", updateCenterOptions);
+      
+      centerSelect.addEventListener("change", (e) => {
+        updateTypeOptions(e.target.value);
+      });
+      
+      // Actualizar numeración de la lista y contadores
+      const updateNumbers = () => {
+        [...listContainer.children].forEach((item, index) => {
+          const numberSpan = item.querySelector(".number");
+          numberSpan.textContent = `${index + 1}.`;
+        });
+        updateCounters();
+      };
+      
+      // Función para añadir un item a la lista
+      const addListItem = (center, puesto, vacantes, codes) => {
+        const item = document.createElement("div");
+        item.classList.add("list-item");
+        item.draggable = true;
+        item.dataset.center = center;
+        item.dataset.puesto = puesto;
+        item.dataset.vacantes = vacantes;
+        item.dataset.codes = codes;
+        item.innerHTML = `
+          <span class="number"></span>
+          <span>${center} - ${puesto} (${vacantes} plaza${vacantes > 1 ? "s" : ""})</span>
+          <span>- Código: ${codes}</span>
+          <button class="remove-button">X</button>
+        `;
+        const removeButton = item.querySelector(".remove-button");
+        removeButton.addEventListener("click", () => {
+          item.remove();
+          updateNumbers();
+        });
+        listContainer.appendChild(item);
+        updateNumbers();
+        enableDragAndDrop();
+      };
+      
+      // Habilitar drag and drop
+      const enableDragAndDrop = () => {
+        const items = document.querySelectorAll(".list-item");
+        items.forEach(item => {
+          item.addEventListener("dragstart", () => item.classList.add("dragging"));
+          item.addEventListener("dragend", () => {
+            item.classList.remove("dragging");
+            updateNumbers();
+          });
+        });
+        listContainer.addEventListener("dragover", e => {
+          e.preventDefault();
+          const afterElement = getDragAfterElement(listContainer, e.clientY);
+          const dragging = document.querySelector(".dragging");
+          if (afterElement == null) listContainer.appendChild(dragging);
+          else listContainer.insertBefore(dragging, afterElement);
+        });
+      };
+      
+      const getDragAfterElement = (container, y) => {
+        const draggableElements = [...container.querySelectorAll(".list-item:not(.dragging)")];
+        return draggableElements.reduce((closest, child) => {
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height / 2;
+          return offset < 0 && offset > closest.offset ? { offset, element: child } : closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+      };
+      
+      document.getElementById("addForm").addEventListener("submit", e => {
+        e.preventDefault();
+        const center = centerSelect.value;
+        const typeOption = typeSelect.options[typeSelect.selectedIndex];
+        if (!center || !typeOption) return;
+        const puesto = typeOption.value;
+        const vacantes = typeOption.dataset.vacantes;
+        const codes = typeOption.dataset.codes;
+        const duplicate = [...listContainer.children].some(item => item.dataset.center === center && item.dataset.puesto === puesto);
+        if (duplicate) {
+          message.textContent = "La plaza ya está añadida.";
+          message.className = "error";
+          return;
+        }
+        addListItem(center, puesto, vacantes, codes);
+        message.textContent = "Plaza añadida correctamente.";
+        message.className = "success";
+      });
+      
+      document.getElementById("clearAll").addEventListener("click", () => {
+        if (confirm("¿Estás seguro de que deseas borrar toda la lista?")) {
+          listContainer.innerHTML = "";
+          message.textContent = "Lista borrada.";
+          message.className = "success";
+          updateCounters();
+        }
+      });
+      
+      document.getElementById("addRemaining").addEventListener("click", () => {
+        if (!confirm("¿Has terminado ya? El resto de las plazas se colocarán al final de la lista por orden alfabético.")) return;
+        Object.keys(centersMap).forEach(center => {
+          const group = {};
+          centersMap[center].forEach(plaza => {
+            const key = plaza.puesto;
+            if (!group[key]) {
+              group[key] = { vacantes: 0, codes: [] };
+            }
+            group[key].vacantes += plaza.vacantes;
+            group[key].codes.push(plaza.code);
+          });
+          Object.keys(group).forEach(puesto => {
+            const duplicate = [...listContainer.children].some(item => item.dataset.center === center && item.dataset.puesto === puesto);
+            if (!duplicate) {
+              addListItem(center, puesto, group[puesto].vacantes, group[puesto].codes.join(", "));
+            }
+          });
+        });
+        message.textContent = "Todas las plazas restantes han sido añadidas.";
+        message.className = "success";
+      });
+      
+      // PDF
+      document.getElementById("exportPDF").addEventListener("click", () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        
+        // Título centrado, mayúsculas, en negrita y con gran tamaño
+        doc.setFont("Arial", "bold");
+        doc.setFontSize(24);
+        const titleText = "LISTA SOLICITUD DE PASE A CARRERA".toUpperCase();
+        doc.text(titleText, pageWidth / 2, 20, { align: "center" });
+        
+        // Preparar datos para la tabla
+        const bodyData = [...listContainer.children].map((item, index) => {
+          const center = item.dataset.center;
+          const puesto = item.dataset.puesto;
+          const vacantes = item.dataset.vacantes;
+          const codes = item.dataset.codes;
+          return [
+            `${index + 1}`,
+            `${center} - ${puesto} (${vacantes} plaza${vacantes > 1 ? "s" : ""})`,
+            codes
+          ];
+        });
+        
+        const startY = 30;
+        doc.setFont("Arial", "normal");
+        doc.setFontSize(10);
+        
+        // AutoTable con numeración de páginas
+        doc.autoTable({
+          head: [["Nº", "Centro, Puesto y Vacantes", "Código"]],
+          body: bodyData,
+          startY: startY,
+          didDrawPage: function (data) {
+            const pageCount = doc.internal.getNumberOfPages();
+            const pageNumber = doc.internal.getCurrentPageInfo().pageNumber;
+            doc.setFontSize(10);
+            doc.text(`Página ${pageNumber} de ${pageCount}`, pageWidth - 20, doc.internal.pageSize.getHeight() - 10);
+          },
+          columnStyles: {
+            2: { fontStyle: "bold" }
+          }
+        });
+        
+        // Mensaje final en recuadro, en negrita y con letra más grande
+        const finalY = doc.lastAutoTable.finalY || startY;
+        const messageText = "IMPORTANTE: Recuerda comprobar que has introducido todas las plazas, revisa los codigos y repasa con cuidado al menos las que estén dentro de tu número de promoción. Mucha suerte!";
+        const margin = 10;
+        const rectWidth = pageWidth - 2 * margin;
+        const rectHeight = 30;
+        doc.setFont("Arial", "bold");
+        doc.setFontSize(12);
+        doc.rect(margin, finalY + 10, rectWidth, rectHeight, 'S');
+        doc.text(messageText, margin + 5, finalY + 10 + 20, { maxWidth: rectWidth - 10 });
+        
+        doc.save("lista_centros.pdf");
+        message.textContent = "PDF generado y descargado.";
+        message.className = "download";
+      });
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Lista de pase a carrera 2025</h1>
+    <div style="border: 2px solid red; padding: 10px; margin-bottom: 20px; background-color: #fff5f5;">
+      <strong>ATENCIÓN:</strong> Esta web doméstica tiene como objetivo ayudar a los candidatos a la hora de ordenar las preferencias durante el procedimiento de pase a carrera del Cuerpo de Ayudante de IIPP en 2025. Las listas elaboradas no se guardan una vez que se abandona esta pestaña, por lo que, si no se elabora la lista completa de una vez, se recomienda generar un PDF para poder volver a elaborarla desde el principio sin olvidar las decisiones que hemos tomado. ¡Mucha suerte!
+    </div>
+    <form id="addForm">
+      <div class="form-row">
+        <div>
+          <label for="searchCenter">Buscar centro o código:</label>
+          <input type="text" id="searchCenter" placeholder="Ej: AVILA, 48...">
+        </div>
+        <div>
+          <label for="center">Centro:</label>
+          <select id="center"></select>
+        </div>
+      </div>
+      <div class="form-row-second">
+        <div>
+          <label for="type">Tipo de Puesto:</label>
+          <select id="type"></select>
+        </div>
+      </div>
+      <div class="button-row">
+        <button type="submit" class="add-button">Añadir Plaza</button>
+        <button type="button" id="addRemaining" class="rest-button">Añadir el resto</button>
+        <button type="button" id="exportPDF" class="pdf-button">Generar PDF</button>
+        <button type="button" id="clearAll" class="danger-button">Borrar todo</button>
+        <div id="counterRemaining" class="counter"></div>
+        <div id="counterTotal" class="counter"></div>
+      </div>
+    </form>
+    <div id="message"></div>
+    <div id="listContainer" class="list-container"></div>
+  </div>
+</body>
+</html>
